@@ -5,7 +5,7 @@ import Confetti from 'react-confetti';
 import {
   Timer, Star, Trophy, Shield, Heart,
   Crown, RefreshCw, Award, Zap, Book,
-  Share2, Eye, X, Volume2
+  Share2, Eye, X, Volume2, ArrowLeft
 } from 'lucide-react';
 
 // Ses efektlerini CDN'den yükleyelim
@@ -46,7 +46,6 @@ const POWERUPS = {
   extraLife: {
     icon: Heart,
     name: 'Ekstra Can',
-    description: 'Bir can kazandırır',
     cost: 2000
   },
   doublePoints: {
@@ -304,92 +303,94 @@ const GameHeader = ({
   isSoundEnabled,
   onToggleSound,
   onOpenStore,
-  onOpenAchievements,
   activePowerUps
 }) => (
-  <div className={`p-3 sm:p-4 rounded-xl ${
+  <div className={`p-2 sm:p-3 rounded-xl ${
     darkMode ? 'bg-gray-800/50' : 'bg-white/50'
   } backdrop-blur-sm shadow-lg border border-gray-200/20`}>
-    <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
-      {/* Sol Grup - Kontroller */}
-      <div className="flex items-center gap-2 sm:gap-4">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        )}
+    <div className="flex items-center gap-2 sm:gap-4">
+      {/* Sol: Kontroller */}
+      <div className="flex items-center gap-1 sm:gap-2">
+        <button
+          onClick={onBack}
+          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20"
+        >
+          <ArrowLeft size={16} className="sm:w-5 sm:h-5" />
+        </button>
         <button
           onClick={onToggleSound}
-          className="p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20 transition-colors"
+          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20"
         >
-          {isSoundEnabled ? (
-            <Volume2 size={20} className="text-violet-500" />
-          ) : (
-            <Volume2 size={20} className="opacity-50" />
-          )}
+          <Volume2 
+            size={16} 
+            className={`sm:w-5 sm:h-5 ${isSoundEnabled ? 'text-violet-500' : 'opacity-50'}`} 
+          />
         </button>
       </div>
 
-      {/* Orta Grup - Ana Metrikler */}
-      <div className="flex-1 grid grid-cols-4 sm:flex items-center justify-center sm:justify-evenly gap-2 sm:gap-6">
-        <StatBadge
+      {/* Orta: Oyun Metrikleri */}
+      <div className="flex-1 grid grid-cols-5 gap-1 sm:gap-2 place-items-center">
+        <GameStat
           icon={Timer}
-          value={`${timer}s`}
+          value={timer}
+          suffix="s"
           color="text-orange-500"
-          label="Süre"
+          isActive={activePowerUps.timeFreeze?.active}
+          remainingTime={activePowerUps.timeFreeze?.remainingTime}
         />
-        <StatBadge
+        <GameStat
           icon={Heart}
           value={lives}
           color="text-red-500"
-          label="Can"
         />
-        <StatBadge
+        <GameStat
           icon={Zap}
-          value={`${combo}x`}
+          value={combo}
+          suffix="x"
           color="text-blue-500"
-          label="Kombo"
+          isActive={activePowerUps.doublePoints?.active}
+          remainingTime={activePowerUps.doublePoints?.remainingTime}
         />
-        <StatBadge
+        <GameStat
           icon={Star}
           value={level}
           color="text-violet-500"
-          label="Seviye"
+        />
+        <GameStat
+          icon={Crown}
+          value={score}
+          color="text-yellow-500"
         />
       </div>
 
-      {/* Sağ Grup - Skor ve Coin */}
-      <div className="flex items-center gap-4 sm:min-w-[140px] justify-end">
-        <button
-          onClick={onOpenStore}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg
-            bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 transition-colors"
-        >
-          <Trophy size={16} />
-          <span>{coins}</span>
-        </button>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg
-          bg-yellow-500/10 text-yellow-500"
-        >
-          <Crown size={16} />
-          <span>{score}</span>
-        </div>
-      </div>
+      {/* Sağ: Coin ve Store */}
+      <button
+        onClick={onOpenStore}
+        className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg 
+        bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 transition-colors"
+      >
+        <Trophy size={16} className="sm:w-5 sm:h-5" />
+        <span className="text-sm sm:text-base font-medium">{coins}</span>
+      </button>
     </div>
   </div>
 );
 
-// Yeni StatBadge bileşeni
-const StatBadge = ({ icon: Icon, value, color, label }) => (
-  <div className="flex flex-col items-center gap-0.5">
-    <div className="flex items-center gap-1.5">
+// Yeni GameStat bileşeni
+const GameStat = ({ icon: Icon, value, suffix = '', color, isActive, remainingTime }) => (
+  <div className="relative flex flex-col items-center">
+    <div className={`relative p-1.5 sm:p-2 rounded-lg ${
+      isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'
+    } transition-colors`}>
       <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${color}`} />
-      <span className="font-medium">{value}</span>
+      {isActive && remainingTime && (
+        <div className="absolute -bottom-1 -right-1 text-[10px] font-medium px-1 py-0.5 
+        rounded-full bg-violet-500 text-white">{remainingTime}</div>
+      )}
     </div>
-    <span className="text-[10px] sm:text-xs opacity-60">{label}</span>
+    <span className="mt-0.5 text-xs sm:text-sm font-medium">
+      {value}{suffix}
+    </span>
   </div>
 );
 
