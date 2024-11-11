@@ -6,7 +6,7 @@ import {
   Timer, Star, Trophy, Shield, Heart,
   Volume2, Crown, ArrowLeft, RefreshCw,
   Music, VolumeX, X,
-  HelpCircle, Book, Share2
+  HelpCircle, Book, Share2, Zap
 } from 'lucide-react';
 
 // Ses efektleri
@@ -24,6 +24,31 @@ const DIFFICULTY_SETTINGS = {
   easy: { timeLimit: 120, hints: 5, lives: 5 },
   medium: { timeLimit: 90, hints: 3, lives: 3 },
   hard: { timeLimit: 60, hints: 1, lives: 2 }
+};
+
+// POWERUPS sabiti ekleyelim (en üstteki sabitlerin yanına)
+const POWERUPS = {
+  timeBoost: {
+    icon: Timer,
+    name: 'Süre Bonusu',
+    description: '+30 saniye süre ekler',
+    cost: 1000,
+    effect: 30
+  },
+  extraLife: {
+    icon: Heart,
+    name: 'Ekstra Can',
+    description: '+1 can ekler',
+    cost: 1500,
+    effect: 1
+  },
+  extraHint: {
+    icon: HelpCircle,
+    name: 'İpucu Bonusu',
+    description: '+2 ipucu hakkı ekler',
+    cost: 2000,
+    effect: 2
+  }
 };
 
 // Modal bileşeni
@@ -163,7 +188,7 @@ const LetterTile = ({
 );
 
 // GameHeader bileşenini güncelle
-const GameHeader = ({ score, lives, timer, level, hintsLeft, combo, darkMode, onBack, isSoundEnabled, onToggleSound, onShowTutorial }) => (
+const GameHeader = ({ score, lives, timer, level, hintsLeft, combo, darkMode, onBack, isSoundEnabled, onToggleSound, onShowTutorial, coins, onOpenStore }) => (
   <div className={`p-3 sm:p-4 rounded-xl ${
     darkMode ? 'bg-gray-800/50' : 'bg-white/50'
   } backdrop-blur-sm shadow-lg border border-gray-200/20`}>
@@ -232,6 +257,17 @@ const GameHeader = ({ score, lives, timer, level, hintsLeft, combo, darkMode, on
           color="text-amber-500"
           label="Süre"
         />
+      </div>
+
+      {/* Sağ Grup - Coin ve Mağaza */}
+      <div className="flex items-center gap-2 sm:gap-4">
+        <button
+          onClick={onOpenStore}
+          className="p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20 transition-colors"
+        >
+          <Trophy size={18} className="sm:w-5 sm:h-5 text-yellow-500" />
+          <span className="ml-1">{coins}</span>
+        </button>
       </div>
     </div>
   </div>
@@ -307,6 +343,35 @@ const AudioButton = ({ word, onClick, darkMode }) => (
   </motion.button>
 );
 
+// PowerUpStore bileşenini ekleyelim (diğer bileşenlerin yanına)
+const PowerUpStore = ({ coins, onPurchase, darkMode }) => (
+  <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl ${
+    darkMode ? 'bg-gray-800' : 'bg-white'
+  }`}>
+    {Object.entries(POWERUPS).map(([key, powerup]) => (
+      <motion.button
+        key={key}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => onPurchase(key)}
+        className={`p-4 rounded-xl ${
+          darkMode
+            ? 'bg-violet-500/20 hover:bg-violet-500/30'
+            : 'bg-violet-50 hover:bg-violet-100'
+        } flex flex-col items-center gap-2`}
+      >
+        <powerup.icon className="w-8 h-8" />
+        <div className="text-sm font-medium">{powerup.name}</div>
+        <div className="text-xs opacity-75">{powerup.description}</div>
+        <div className="mt-2 flex items-center gap-1">
+          <Trophy className="w-4 h-4 text-yellow-500" />
+          <span>{powerup.cost}</span>
+        </div>
+      </motion.button>
+    ))}
+  </div>
+);
+
 export default function WordPuzzleGame({
   words = [],
   darkMode = false,
@@ -333,6 +398,11 @@ export default function WordPuzzleGame({
   const [showConfetti, setShowConfetti] = useState(false);
   const { width, height } = useWindowSize();
   const [animatingLetter, setAnimatingLetter] = useState(null);
+  const [coins, setCoins] = useState(2000); // Başlangıç coini
+  const [showStore, setShowStore] = useState(false);
+  const [showInsufficientCoinsModal, setShowInsufficientCoinsModal] = useState(false);
+  const [showVideoUnavailable, setShowVideoUnavailable] = useState(false);
+  const [selectedPowerUp, setSelectedPowerUp] = useState(null);
 
   // Ses efekti çalma
   const playSound = useCallback((soundName) => {
@@ -575,6 +645,42 @@ export default function WordPuzzleGame({
     }
   }, [currentWord, playSound]);
 
+  // PowerUp satın alma işlemi
+  const handlePurchasePowerUp = useCallback((powerUpId) => {
+    const powerUp = POWERUPS[powerUpId];
+
+    if (coins < powerUp.cost) {
+      setSelectedPowerUp(powerUp);
+      setShowInsufficientCoinsModal(true);
+      return;
+    }
+
+    setCoins(prev => prev - powerUp.cost);
+    setShowStore(false);
+    playSound('powerup');
+
+    // PowerUp etkilerini uygula
+    switch (powerUpId) {
+      case 'timeBoost':
+        setTimer(prev => prev + powerUp.effect);
+        break;
+      case 'extraLife':
+        setLives(prev => Math.min(prev + powerUp.effect, 5));
+        break;
+      case 'extraHint':
+        setHintsLeft(prev => Math.min(prev + powerUp.effect, 5));
+        break;
+      default:
+        break;
+    }
+  }, [coins, playSound]);
+
+  // Video izleme işlemi
+  const handleWatchAd = useCallback(() => {
+    setShowInsufficientCoinsModal(false);
+    setShowVideoUnavailable(true);
+  }, []);
+
   // İlk oyun ekranı
   if (isFirstGame) {
     return (
@@ -701,6 +807,8 @@ export default function WordPuzzleGame({
           playSound('click');
         }}
         onShowTutorial={() => setShowTutorial(true)}
+        coins={coins}
+        onOpenStore={() => setShowStore(true)}
       />
 
       <div className={`p-2 sm:p-4 rounded-2xl ${
@@ -892,6 +1000,127 @@ export default function WordPuzzleGame({
           />
         )}
       </AnimatePresence>
+
+      {/* PowerUp Mağazası Modal */}
+      <AnimatePresence>
+        {showStore && (
+          <Modal
+            title="Güç-Up Mağazası"
+            onClose={() => setShowStore(false)}
+            darkMode={darkMode}
+          >
+            <PowerUpStore
+              coins={coins}
+              onPurchase={handlePurchasePowerUp}
+              darkMode={darkMode}
+            />
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Yetersiz Coin Bildirimi */}
+      <AnimatePresence>
+        {showInsufficientCoinsModal && (
+          <InsufficientCoinsModal
+            powerUp={selectedPowerUp}
+            darkMode={darkMode}
+            onClose={() => setShowInsufficientCoinsModal(false)}
+            onWatchAd={handleWatchAd}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Video Kullanılamıyor Bildirimi */}
+      <AnimatePresence>
+        {showVideoUnavailable && (
+          <VideoUnavailableModal
+            darkMode={darkMode}
+            onClose={() => setShowVideoUnavailable(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+// Video bildirimi bileşeni
+const VideoUnavailableModal = ({ onClose, darkMode }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      className={`w-full max-w-sm p-6 rounded-2xl ${
+        darkMode ? 'bg-gray-800' : 'bg-white'
+      } shadow-xl`}
+    >
+      <div className="flex flex-col items-center text-center gap-4">
+        <Zap className="w-16 h-16 text-violet-500" />
+        <div>
+          <h3 className="text-xl font-bold mb-2">Video Kullanılamıyor</h3>
+          <p className="text-sm opacity-75">
+            Şu an için izlenebilecek video bulunmuyor. Lütfen daha sonra tekrar deneyin!
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={onClose}
+          className="w-full"
+        >
+          Tamam
+        </Button>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+// Yetersiz coin bildirimi bileşeni
+const InsufficientCoinsModal = ({ powerUp, onClose, onWatchAd, darkMode }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      className={`w-full max-w-sm p-6 rounded-2xl ${
+        darkMode ? 'bg-gray-800' : 'bg-white'
+      } shadow-xl`}
+    >
+      <div className="flex flex-col items-center text-center gap-4">
+        <Trophy className="w-16 h-16 text-yellow-500" />
+        <div>
+          <h3 className="text-xl font-bold mb-2">Yetersiz Coin!</h3>
+          <p className="text-sm opacity-75">
+            {powerUp.name} satın almak için {powerUp.cost} coin gerekiyor.
+            Video izleyerek coin kazanabilirsiniz!
+          </p>
+        </div>
+        <div className="flex gap-3 w-full">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            className="flex-1"
+          >
+            Çık
+          </Button>
+          <Button
+            variant="primary"
+            onClick={onWatchAd}
+            className="flex-1"
+          >
+            Video İzle
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  </motion.div>
+);
