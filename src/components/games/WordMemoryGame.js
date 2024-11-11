@@ -591,21 +591,26 @@ export default function WordMemoryGame({
   }, [isGameOver, activePowerUps.timeFreeze, isSoundEnabled, playSound]);
 
   // Kart tıklama işleyicisi
-  const handleCardClick = useCallback((index) => {
+  const handleCardClick = useCallback(async (index) => {
     if (flippedIndexes.length === 2 || isGameOver) return;
-
+  
     setFlippedIndexes(prev => [...prev, index]);
-
+  
+    const clickedCard = gameCards[index];
+    if (clickedCard.word.isPolish) {
+      await playAudioWithElevenLabs(clickedCard.word.polish);
+    }
+  
     if (flippedIndexes.length === 1) {
       const firstCard = gameCards[flippedIndexes[0]];
       const secondCard = gameCards[index];
-
+  
       if (firstCard.pairId === secondCard.pairId) {
         setMatchedPairs(prev => [...prev, firstCard.pairId]);
         setScore(prev => prev + (100 * (activePowerUps.doublePoints?.active ? 2 : 1)));
         setCombo(prev => prev + 1);
         playSound('match');
-
+  
         // Tüm kartlar eşleşti mi kontrol et
         if (matchedPairs.length + 1 === DIFFICULTY_SETTINGS[difficulty].pairs) {
           setGameStatus('won');
@@ -618,7 +623,7 @@ export default function WordMemoryGame({
           setLives(prev => prev - 1);
           setCombo(0);
           playSound('wrong');
-
+  
           if (lives <= 1) {
             setGameStatus('lost');
             setIsGameOver(true);
@@ -626,12 +631,13 @@ export default function WordMemoryGame({
           }
         }, 1000);
       }
-
+  
       setTimeout(() => {
         setFlippedIndexes([]);
       }, 1000);
     }
   }, [flippedIndexes, gameCards, isGameOver, lives, matchedPairs.length, difficulty, activePowerUps.doublePoints, playSound]);
+  
 
   // Yeniden başlatma işleyicisi
   const handleRestart = useCallback(() => {
