@@ -15,7 +15,9 @@ import {
   Zap,
   Brain,
   SwordIcon,
-  Target
+  Target,
+  Eye, // Eye ikonunu ekledik
+  X // Modal için X ikonu
 } from 'lucide-react';
 
 const DIFFICULTY_SETTINGS = {
@@ -342,7 +344,149 @@ const StatCard = ({ icon: Icon, title, value, color, darkMode }) => (
       </div>
     </div>
   </div>
-);// Ana oyun komponenti
+);// IconTooltip bileşeni
+const IconTooltip = ({ isOpen, onClose, title, description, icon: Icon, color, stats }) => (
+  <div className="fixed inset-0 z-[9999]">
+    <div className="absolute inset-0" onClick={onClose} />
+    <div className="absolute left-1/2 top-16 -translate-x-1/2 w-80">
+      <motion.div
+        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="w-full bg-white dark:bg-gray-800 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
+      >
+        <div className="p-4">
+          <div className="flex items-start gap-3 mb-3">
+            <div className={`p-2.5 rounded-lg ${color.bg} shrink-0`}>
+              <Icon className={`w-5 h-5 ${color.text}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+            </div>
+          </div>
+
+          {stats && (
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(stats).map(([key, value]) => (
+                <div
+                  key={key}
+                  className="px-2.5 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 flex items-center justify-between"
+                >
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{key}</span>
+                  <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  </div>
+);
+
+// GameStat bileşeni
+const GameStat = React.memo(({ icon: Icon, value, suffix = '', color, isActive, remainingTime, tooltip }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const timeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setShowTooltip(true);
+  };
+
+  const handleMouseLeave = () => {
+    setShowTooltip(false); // Timeout'u kaldırdık, direkt kapatıyoruz
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className={`
+        relative p-2 sm:p-2.5 rounded-xl
+        ${isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'}
+        ${showTooltip ? 'ring-2 ring-violet-500/50' : ''}
+      `}>
+        <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${color}`} />
+
+        {isActive && remainingTime > 0 && (
+          <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-violet-500 text-white text-[10px] font-medium">
+            {remainingTime}
+          </div>
+        )}
+
+        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
+          <div className="px-2 py-0.5 rounded-full bg-gray-900/90 dark:bg-gray-700/90 text-white text-xs font-medium whitespace-nowrap">
+            {value}{suffix}
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showTooltip && (
+          <IconTooltip
+            isOpen={showTooltip}
+            onClose={() => setShowTooltip(false)}
+            {...tooltip}
+            icon={Icon}
+            color={{
+              bg: `${color.replace('text', 'bg')}/10`,
+              text: color
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+// Modal bileşenini ekleyelim (PowerUpStore'dan önce)
+const Modal = ({ title, children, onClose, darkMode }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      className={`w-full max-w-md p-6 rounded-2xl ${
+        darkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-200'
+      } border shadow-xl`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">{title}</h2>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      {children}
+    </motion.div>
+  </motion.div>
+);
+
+// Ana oyun komponenti
 const WordDuel = ({ words = [], darkMode = false, onBack }) => {
   // State tanımlamaları
   const [showDifficultyModal, setShowDifficultyModal] = useState(true);
@@ -371,6 +515,9 @@ const WordDuel = ({ words = [], darkMode = false, onBack }) => {
 
   const inputRef = useRef(null);
   const gameLoopRef = useRef(null);
+
+  // Sound state'ini ekleyelim
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   // Kelime seçme ve filtreleme - Düzeltilmiş versiyon
 const selectWord = useCallback(() => {
@@ -607,8 +754,466 @@ const checkWord = useCallback(() => {
     });
   }, []);
 
+  // Güç-up'lar için yeni sabitler ekleyelim
+const POWERUPS = {
+  timeFreeze: {
+    icon: Timer,
+    name: 'Zaman Dondurma',
+    description: '15 saniyeliğine süreyi dondurur',
+    duration: 15,
+    cost: 1000
+  },
+  showTranslation: {
+    icon: Eye,
+    name: 'Çeviri Göster',
+    description: 'Bir sonraki kelime için çeviriyi gösterir',
+    duration: 1,
+    cost: 1500
+  },
+  extraLife: {
+    icon: Heart,
+    cost: 2000
+  },
+  doublePoints: {
+    icon: Zap,
+    name: 'Çift Puan',
+    description: '30 saniye boyunca çift puan',
+    duration: 30,
+    cost: 2500
+  }
+};
+
+// IconTooltip bileşenini WordMemoryGame'den kopyalayıp ekleyelim
+const IconTooltip = ({ isOpen, onClose, title, description, icon: Icon, color, stats }) => (
+  <div className="fixed inset-0 z-[9999]">
+    <div className="absolute inset-0" onClick={onClose} />
+    <div className="absolute left-1/2 top-16 -translate-x-1/2 w-80">
+      <motion.div
+        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="w-full bg-white dark:bg-gray-800 shadow-lg shadow-black/5 dark:shadow-black/20 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
+      >
+        <div className="p-4">
+          <div className="flex items-start gap-3 mb-3">
+            <div className={`p-2.5 rounded-lg ${color.bg} shrink-0`}>
+              <Icon className={`w-5 h-5 ${color.text}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+            </div>
+          </div>
+
+          {stats && (
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(stats).map(([key, value]) => (
+                <div
+                  key={key}
+                  className="px-2.5 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 flex items-center justify-between"
+                >
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{key}</span>
+                  <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  </div>
+);
+
+// GameStat bileşeni
+const GameStat = React.memo(({ icon: Icon, value, suffix = '', color, isActive, remainingTime, tooltip }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const timeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setShowTooltip(true);
+  };
+
+  const handleMouseLeave = () => {
+    setShowTooltip(false); // Timeout'u kaldırdık, direkt kapatıyoruz
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className={`
+        relative p-2 sm:p-2.5 rounded-xl
+        ${isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'}
+        ${showTooltip ? 'ring-2 ring-violet-500/50' : ''}
+      `}>
+        <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${color}`} />
+
+        {isActive && remainingTime > 0 && (
+          <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-violet-500 text-white text-[10px] font-medium">
+            {remainingTime}
+          </div>
+        )}
+
+        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
+          <div className="px-2 py-0.5 rounded-full bg-gray-900/90 dark:bg-gray-700/90 text-white text-xs font-medium whitespace-nowrap">
+            {value}{suffix}
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showTooltip && (
+          <IconTooltip
+            isOpen={showTooltip}
+            onClose={() => setShowTooltip(false)}
+            {...tooltip}
+            icon={Icon}
+            color={{
+              bg: `${color.replace('text', 'bg')}/10`,
+              text: color
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+// Header'ı güncelleyelim
+const GameHeader = React.memo(({ score, lives, timer, combo, coins, darkMode, difficulty, onBack, isSoundEnabled, onToggleSound, onOpenStore, activePowerUps }) => (
+  <div className={`p-3 sm:p-4 rounded-xl
+    ${darkMode ? 'bg-gray-800' : 'bg-white'}
+    shadow-xl border border-gray-200/20
+    bg-gradient-to-r from-violet-500/5 via-transparent to-violet-500/5
+    relative z-[100]`}
+  >
+    <div className="flex items-center gap-3 sm:gap-4">
+      {/* Sol: Kontroller */}
+      <div className="flex items-center gap-2">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onBack}
+          className="p-2 rounded-lg bg-gray-900/5 hover:bg-gray-900/10
+          dark:bg-gray-700/30 dark:hover:bg-gray-700/50 transition-all"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onToggleSound}
+          className={`p-2 rounded-lg transition-all
+            ${isSoundEnabled
+              ? 'bg-violet-500/20 text-violet-500'
+              : 'bg-gray-900/5 dark:bg-gray-700/30'}`}
+        >
+          <Volume2 className="w-5 h-5" />
+        </motion.button>
+      </div>
+
+      {/* Orta: Oyun Metrikleri */}
+      <div className="flex-1 grid grid-cols-5 gap-2 sm:gap-3 place-items-center">
+        <GameStat
+          index={0}
+          icon={Timer}
+          value={timer}
+          suffix="s"
+          color="text-orange-500"
+          isActive={activePowerUps.timeFreeze?.active}
+          remainingTime={activePowerUps.timeFreeze?.remainingTime}
+          tooltip={{
+            title: "Kalan Süre",
+            description: "Kelimeyi bilmek için kalan süre",
+            stats: {
+              "Hedef": `${DIFFICULTY_SETTINGS[difficulty].timeLimit}s`,
+              "Kalan": `${timer}s`
+            }
+          }}
+        />
+        <GameStat
+          index={1}
+          icon={Heart}
+          value={lives}
+          color="text-red-500"
+          tooltip={{
+            title: "Canlar",
+            description: "Kalan can sayısı",
+            stats: {
+              "Başlangıç": DIFFICULTY_SETTINGS[difficulty].lives,
+              "Kalan": lives
+            }
+          }}
+        />
+        <GameStat
+          index={2}
+          icon={Zap}
+          value={combo}
+          suffix="x"
+          color="text-blue-500"
+          isActive={activePowerUps.doublePoints?.active}
+          remainingTime={activePowerUps.doublePoints?.remainingTime}
+          tooltip={{
+            title: "Kombo",
+            description: "Üst üste doğru cevaplar",
+            stats: {
+              "Çarpan": `${DIFFICULTY_SETTINGS[difficulty].comboMultiplier}x`,
+              "Mevcut": `${combo}x`
+            }
+          }}
+        />
+        <GameStat
+          index={3}
+          icon={Crown}
+          value={score}
+          color="text-yellow-500"
+          tooltip={{
+            title: "Skor",
+            description: "Toplam puanınız",
+            stats: {
+              "Baz Puan": DIFFICULTY_SETTINGS[difficulty].points,
+              "Toplam": score
+            }
+          }}
+        />
+        <GameStat
+          index={4}
+          icon={Shield}
+          value={DIFFICULTY_SETTINGS[difficulty].label}
+          color="text-emerald-500"
+          tooltip={{
+            title: "Zorluk",
+            description: "Seçilen zorluk seviyesi",
+            stats: {
+              "Süre": `${DIFFICULTY_SETTINGS[difficulty].timeLimit}s`,
+              "Çarpan": `${DIFFICULTY_SETTINGS[difficulty].comboMultiplier}x`
+            }
+          }}
+        />
+      </div>
+
+      {/* Sağ: Coin ve Store */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onOpenStore}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl
+        bg-gradient-to-r from-violet-500/20 to-violet-500/10
+        hover:from-violet-500/30 hover:to-violet-500/20
+        text-violet-500 transition-all shadow-lg shadow-violet-500/10"
+      >
+        <Trophy className="w-5 h-5" />
+        <span className="font-semibold">{coins}</span>
+      </motion.button>
+    </div>
+  </div>
+), (prevProps, nextProps) => {
+  // Sadece değişen prop'lar için yeniden render
+  return (
+    prevProps.score === nextProps.score &&
+    prevProps.lives === nextProps.lives &&
+    prevProps.timer === nextProps.timer &&
+    prevProps.combo === nextProps.combo &&
+    prevProps.coins === nextProps.coins &&
+    prevProps.darkMode === nextProps.darkMode &&
+    prevProps.difficulty === nextProps.difficulty &&
+    prevProps.isSoundEnabled === nextProps.isSoundEnabled &&
+    JSON.stringify(prevProps.activePowerUps) === JSON.stringify(nextProps.activePowerUps)
+  );
+});
+
+// Güç-up mağazası bileşenini ekleyelim
+const PowerUpStore = ({ coins, onPurchase, darkMode }) => (
+  <div className={`grid grid-cols-2 gap-4 p-4 rounded-xl ${
+    darkMode ? 'bg-gray-800' : 'bg-white'
+  }`}>
+    {Object.entries(POWERUPS).map(([key, powerup]) => (
+      <motion.button
+        key={key}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => onPurchase(key)}
+        className={`p-4 rounded-xl ${
+          darkMode
+            ? 'bg-violet-500/20 hover:bg-violet-500/30'
+            : 'bg-violet-50 hover:bg-violet-100'
+        } flex flex-col items-center gap-2`}
+      >
+        <powerup.icon className="w-8 h-8" />
+        <div className="text-sm font-medium">{powerup.name}</div>
+        <div className="text-xs opacity-75">{powerup.description}</div>
+        <div className="mt-2 flex items-center gap-1">
+          <Trophy className="w-4 h-4 text-yellow-500" />
+          <span>{powerup.cost}</span>
+        </div>
+      </motion.button>
+    ))}
+  </div>
+);
+
+// CoinNotification bileşenini ekle
+const CoinNotification = ({ amount, reason, darkMode }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 50 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -50 }}
+    className={`fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl
+      ${darkMode ? 'bg-gray-800' : 'bg-white'}
+      shadow-lg border border-gray-200/20 backdrop-blur-sm
+      flex items-center gap-3 z-50`}
+  >
+    <Trophy className="w-5 h-5 text-yellow-500" />
+    <div>
+      <div className="font-medium">+{amount} Coin Kazandın!</div>
+      <div className="text-sm opacity-75">{reason}</div>
+    </div>
+  </motion.div>
+);
+
+  // Yeni state'ler ekleyelim
+  const [coins, setCoins] = useState(2000);
+  const [showStore, setShowStore] = useState(false);
+  const [activePowerUps, setActivePowerUps] = useState({});
+  const [selectedPowerUp, setSelectedPowerUp] = useState(null);
+  const [coinNotification, setCoinNotification] = useState(null);
+
+  // PowerUp satın alma işleyicisi
+  const handlePurchasePowerUp = useCallback((powerUpId) => {
+    const powerUp = POWERUPS[powerUpId];
+
+    if (coins < powerUp.cost) {
+      // Yetersiz coin bildirimi
+      return;
+    }
+
+    setCoins(prev => prev - powerUp.cost);
+    setShowStore(false);
+
+    setActivePowerUps(prev => ({
+      ...prev,
+      [powerUpId]: {
+        active: true,
+        remainingTime: powerUp.duration || 0
+      }
+    }));
+
+    // PowerUp efektlerini uygula
+    switch (powerUpId) {
+      case 'timeFreeze':
+        // Zaman dondurma lojiği
+        break;
+      case 'showTranslation':
+        // Çeviri gösterme lojiği
+        break;
+      case 'extraLife':
+        setLives(prev => Math.min(prev + 1, 5));
+        break;
+      case 'doublePoints':
+        // Çift puan lojiği
+        break;
+    }
+  }, [coins]);
+
+  const handleToggleSound = useCallback(() => {
+    setIsSoundEnabled(prev => !prev);
+  }, []);
+
+  const handleOpenStore = useCallback(() => {
+    setShowStore(true);
+  }, []);
+
+  // Coin kazanma fonksiyonu
+  const earnCoins = useCallback((amount, reason) => {
+    setCoins(prev => prev + amount);
+    setCoinNotification({ amount, reason });
+    setTimeout(() => setCoinNotification(null), 3000);
+  }, []);
+
+  // checkWord fonksiyonuna coin kazanma mantığı ekle
+  const checkWordWithCoins = useCallback(() => {
+    if (!userInput.trim() || !currentWord) return;
+
+    const isCorrect = checkVerb(userInput, currentWord.turkish);
+
+    if (isCorrect) {
+      setIsCorrect(true);
+      setShowConfetti(true);
+      const basePoints = DIFFICULTY_SETTINGS[difficulty].points;
+      const comboMultiplier = DIFFICULTY_SETTINGS[difficulty].comboMultiplier;
+      const points = Math.floor(basePoints * (1 + (combo * comboMultiplier)));
+
+      setScore(prev => prev + (specialMoves.doublePoints.active ? points * 2 : points));
+      setCombo(prev => prev + 1);
+      setShowScore(true);
+      setTimer(DIFFICULTY_SETTINGS[difficulty].timeLimit);
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+
+      // Coin kazanma mantığı
+      const coinAmount = Math.floor(points / 10); // Her 10 puan için 1 coin
+      earnCoins(coinAmount, 'Doğru Cevap!');
+
+      // 1 saniye sonra konfeti ve diğer efektleri kaldır, yeni kelimeye geç
+      setTimeout(() => {
+        setShowConfetti(false);
+        setIsCorrect(false);
+        setShowScore(false);
+        setCurrentWord(selectWord());
+        setUserInput('');
+      }, 1000);
+    } else {
+      setIsWrong(true);
+      setCombo(0);
+      setLives(prev => prev - 1);
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate([50, 30, 50]);
+      }
+
+      setTimeout(() => {
+        setIsWrong(false);
+        if (lives <= 1) {
+          setGameOver(true);
+        }
+      }, 1000);
+    }
+
+    setUserInput('');
+  }, [userInput, currentWord, combo, difficulty, lives, selectWord, specialMoves.doublePoints.active, earnCoins]);
+
   return (
     <div className="min-h-screen p-4 space-y-4">
+      <GameHeader
+        score={score}
+        lives={lives}
+        timer={timer}
+        combo={combo}
+        coins={coins}
+        darkMode={darkMode}
+        difficulty={difficulty}
+        onBack={onBack}
+        isSoundEnabled={isSoundEnabled}
+        onToggleSound={handleToggleSound}
+        onOpenStore={handleOpenStore}
+        activePowerUps={activePowerUps}
+      />
+
       {/* Konfeti */}
       {showConfetti && (
         <Confetti
@@ -630,91 +1235,6 @@ const checkWord = useCallback(() => {
           />
         )}
       </AnimatePresence>
-
-      {/* Üst Bilgi Çubuğu */}
-      <div className={`p-4 rounded-2xl ${
-        darkMode
-          ? 'bg-gray-800/50 border-gray-700/50'
-          : 'bg-white/50 border-gray-200/50'
-      } border backdrop-blur-md`}>
-        {/* Kontrol butonları */}
-        <div className="flex justify-between items-center">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onBack}
-            className="flex items-center gap-1.5 py-1 pl-1 pr-3 rounded-full opacity-60 hover:opacity-100 transition-opacity"
-          >
-            <div className={`p-1.5 rounded-full ${
-              darkMode
-                ? 'bg-gray-700/80'
-                : 'bg-gray-100/80'
-            }`}>
-              <ArrowLeft size={16} />
-            </div>
-            <span className="text-sm font-medium">Geri</span>
-          </motion.button>
-
-          <h2 className={`text-lg font-bold ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>
-            Kelime Düellosu
-          </h2>
-          <div className="w-10" /> {/* Denge için boş div */}
-        </div>
-
-        <div className="grid grid-cols-5 gap-4">
-          <div className="flex items-center gap-2">
-            <Trophy className={darkMode ? 'text-yellow-400' : 'text-yellow-500'} />
-            <div>
-              <div className="text-xs opacity-60">Puan</div>
-              <div className="font-bold">{score}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Star className={darkMode ? 'text-violet-400' : 'text-violet-500'} />
-            <div>
-              <div className="text-xs opacity-60">Kombo</div>
-              <div className="font-bold">x{combo}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Heart className={darkMode ? 'text-red-400' : 'text-red-500'} />
-            <div>
-              <div className="text-xs opacity-60">Can</div>
-              <div className="font-bold">{lives}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Timer className={darkMode ? 'text-blue-400' : 'text-blue-500'} />
-            <div>
-              <div className="text-xs opacity-60">Süre</div>
-              <div className="font-bold">{timer}s</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Shield className={darkMode ? 'text-emerald-400' : 'text-emerald-500'} />
-            <div>
-              <div className="text-xs opacity-60">Zorluk</div>
-              <div className="font-bold">{DIFFICULTY_SETTINGS[difficulty].label}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Zaman çubuğu */}
-        <div className="mt-2">
-          <ProgressBar
-            value={timer}
-            maxValue={DIFFICULTY_SETTINGS[difficulty].timeLimit}
-            color="violet"
-            darkMode={darkMode}
-          />
-        </div>
-      </div>
 
       {/* Kelime Kartı */}
       {currentWord && (
@@ -743,7 +1263,7 @@ const checkWord = useCallback(() => {
             value={userInput}
             onChange={handleInputChange}
             onBlur={handleInputBlur} // Blur handler eklendi
-            onKeyPress={(e) => e.key === 'Enter' && checkWord()}
+            onKeyPress={(e) => e.key === 'Enter' && checkWordWithCoins()}
             placeholder="Türkçe çevirisini yazın..."
             className={`w-full px-6 py-4 text-xl rounded-xl outline-none ${
               darkMode
@@ -881,6 +1401,34 @@ const checkWord = useCallback(() => {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Güç-up mağazası modalı */}
+      <AnimatePresence>
+        {showStore && (
+          <Modal
+            title="Güç-Up Mağazası"
+            onClose={() => setShowStore(false)}
+            darkMode={darkMode}
+          >
+            <PowerUpStore
+              coins={coins}
+              onPurchase={handlePurchasePowerUp}
+              darkMode={darkMode}
+            />
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Coin Bildirimi */}
+      <AnimatePresence>
+        {coinNotification && (
+          <CoinNotification
+            amount={coinNotification.amount}
+            reason={coinNotification.reason}
+            darkMode={darkMode}
+          />
         )}
       </AnimatePresence>
     </div>
