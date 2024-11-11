@@ -517,7 +517,7 @@ export default function WordMemoryGame({
   }, [isSoundEnabled]);
 
   // Mevcut state'lere ek olarak:
-  const [coins, setCoins] = useState(0);
+  const [coins, setCoins] = useState(2000); // 2000 coin ile başla
   const [activePowerUps, setActivePowerUps] = useState({});
   const [achievements, setAchievements] = useState([]);
   const [statistics, setStatistics] = useState({
@@ -536,6 +536,7 @@ export default function WordMemoryGame({
   const [celebratingPowerUp, setCelebratingPowerUp] = useState(null);
   const [showInsufficientCoinsModal, setShowInsufficientCoinsModal] = useState(false);
   const [selectedPowerUp, setSelectedPowerUp] = useState(null);
+  const [showInitialCards, setShowInitialCards] = useState(true);
 
   // State tanımlamaları ekleyelim
   const [isGameOver, setIsGameOver] = useState(false);
@@ -548,6 +549,35 @@ export default function WordMemoryGame({
   const [flippedIndexes, setFlippedIndexes] = useState([]);
   const [matchedPairs, setMatchedPairs] = useState([]);
   const [gameCards, setGameCards] = useState([]);
+
+  // Başlangıçta kartları göster ve 5 saniye sonra kapat
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowInitialCards(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // PowerUp'ların efektlerini uygula - Bu fonksiyonu yukarı taşıyoruz
+  const applyPowerUpEffect = useCallback((powerUpId) => {
+    switch (powerUpId) {
+      case 'timeFreeze':
+        // Zaman dondurma özelliği zaten timer useEffect'inde kontrol ediliyor
+        break;
+      case 'revealCards':
+        // Kartları göster özelliği zaten Card bileşeninde kontrol ediliyor
+        break;
+      case 'extraLife':
+        setLives(prev => Math.min(prev + 1, 5)); // Maximum 5 can
+        break;
+      case 'doublePoints':
+        // Çift puan özelliği zaten handleCardClick'te kontrol ediliyor
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   // PowerUp satın alma
   const handlePurchasePowerUp = useCallback((powerUpId) => {
@@ -573,17 +603,25 @@ export default function WordMemoryGame({
   // Kutlama tamamlandığında çağrılacak fonksiyon
   const handleCelebrationComplete = useCallback(() => {
     if (celebratingPowerUp) {
+      const powerUpId = Object.keys(POWERUPS).find(
+        key => POWERUPS[key] === celebratingPowerUp
+      );
+
       setActivePowerUps(prev => ({
         ...prev,
-        [celebratingPowerUp.id]: {
+        [powerUpId]: {
           active: true,
-          remainingTime: celebratingPowerUp.duration
+          remainingTime: celebratingPowerUp.duration || 0
         }
       }));
+
+      // PowerUp efektini uygula
+      applyPowerUpEffect(powerUpId);
+
       if (isSoundEnabled) playSound('powerup');
       setCelebratingPowerUp(null);
     }
-  }, [celebratingPowerUp, isSoundEnabled, playSound]);
+  }, [celebratingPowerUp, isSoundEnabled, playSound, applyPowerUpEffect]);
 
   // Başarım kontrolü
   const checkAchievements = useCallback(() => {
@@ -793,13 +831,14 @@ export default function WordMemoryGame({
                 key={card.id}
                 word={card.word}
                 isFlipped={
+                  showInitialCards || // Başlangıçta kartları göster
                   flippedIndexes.includes(index) ||
                   matchedPairs.includes(card.word.pairId) ||
                   activePowerUps.revealCards?.active
                 }
                 isMatched={matchedPairs.includes(card.word.pairId)}
                 isHighlighted={activePowerUps.doublePoints?.active}
-                onClick={() => handleCardClick(index)}
+                onClick={() => !showInitialCards && handleCardClick(index)} // Başlangıç gösterimi sırasında tıklamayı engelle
                 onPlaySound={playSound}
                 darkMode={darkMode}
               />
