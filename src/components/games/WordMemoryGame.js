@@ -290,7 +290,133 @@ const AchievementsPanel = ({ achievements, darkMode }) => (
   </div>
 );
 
-// GameHeader bileşenini güncelle
+// IconTooltip bileşenini güncelle - daha kompakt tasarım
+const IconTooltip = ({ isOpen, onClose, title, description, icon: Icon, color, stats }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 5 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: 5 }}
+    className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-64"
+    onClick={(e) => {
+      e.stopPropagation();
+      onClose();
+    }}
+  >
+    <motion.div
+      className={`p-3 rounded-xl bg-white/95 dark:bg-gray-800/95 shadow-lg
+      border border-gray-200/20 dark:border-gray-700/30 backdrop-blur-sm
+      text-left`}
+    >
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg ${color.bg} shrink-0`}>
+          <Icon className={`w-4 h-4 ${color.text}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-sm">{title}</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+            {description}
+          </p>
+          {stats && (
+            <div className="mt-2 flex gap-2 text-xs">
+              {Object.entries(stats).map(([key, value]) => (
+                <div key={key} className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700/50">
+                  <span className="text-gray-500 dark:text-gray-400">{key}:</span>
+                  {' '}
+                  <span className="font-medium">{value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+// GameStat bileşenini relative yap
+const GameStat = ({
+  icon: Icon,
+  value,
+  suffix = '',
+  color,
+  isActive,
+  remainingTime,
+  tooltip
+}) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // Tooltip'i otomatik kapatmak için useEffect ekle
+  useEffect(() => {
+    let timeoutId;
+    if (showTooltip) {
+      timeoutId = setTimeout(() => {
+        setShowTooltip(false);
+      }, 3000); // 3 saniye sonra kapat
+    }
+    return () => clearTimeout(timeoutId);
+  }, [showTooltip]);
+
+  return (
+    <div className="relative">
+      <motion.button
+        onClick={() => {
+          setShowTooltip(true);
+        }}
+        onMouseEnter={() => setShowTooltip(true)}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="relative group"
+      >
+        <div className={`relative p-2 sm:p-2.5 rounded-xl transition-all duration-200
+          ${isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'}
+          group-hover:shadow-lg group-hover:shadow-${color.split('-')[1]}-500/20`}
+        >
+          <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${color} transition-transform
+            group-hover:scale-110`} />
+
+          {isActive && remainingTime && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -bottom-1 -right-1 px-1.5 py-0.5
+              rounded-full bg-violet-500 text-white text-[10px] font-medium
+              shadow-lg shadow-violet-500/30"
+            >
+              {remainingTime}
+            </motion.div>
+          )}
+        </div>
+        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-2 py-0.5 rounded-full bg-gray-900/90 dark:bg-gray-700/90
+            text-white text-xs font-medium whitespace-nowrap"
+          >
+            {value}{suffix}
+          </motion.div>
+        </div>
+      </motion.button>
+
+      <AnimatePresence>
+        {showTooltip && (
+          <IconTooltip
+            isOpen={showTooltip}
+            onClose={() => setShowTooltip(false)}
+            {...tooltip}
+            icon={Icon}
+            color={{
+              bg: `${color.replace('text', 'bg')}/10`,
+              text: color
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// GameHeader'ı güncelle
 const GameHeader = ({
   score,
   lives,
@@ -299,37 +425,48 @@ const GameHeader = ({
   combo,
   coins,
   darkMode,
+  difficulty, // Add difficulty prop
   onBack,
   isSoundEnabled,
   onToggleSound,
   onOpenStore,
   activePowerUps
 }) => (
-  <div className={`p-2 sm:p-3 rounded-xl ${
-    darkMode ? 'bg-gray-800/50' : 'bg-white/50'
-  } backdrop-blur-sm shadow-lg border border-gray-200/20`}>
-    <div className="flex items-center gap-2 sm:gap-4">
+  <motion.div
+    initial={{ y: -20, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    className={`p-3 sm:p-4 rounded-xl
+    ${darkMode ? 'bg-gray-800/50' : 'bg-white/50'}
+    backdrop-blur-lg shadow-xl border border-gray-200/20
+    bg-gradient-to-r from-violet-500/5 via-transparent to-violet-500/5`}
+  >
+    <div className="flex items-center gap-3 sm:gap-4">
       {/* Sol: Kontroller */}
-      <div className="flex items-center gap-1 sm:gap-2">
-        <button
+      <div className="flex items-center gap-2">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={onBack}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20"
+          className="p-2 rounded-lg bg-gray-900/5 hover:bg-gray-900/10
+          dark:bg-gray-700/30 dark:hover:bg-gray-700/50 transition-all"
         >
-          <ArrowLeft size={16} className="sm:w-5 sm:h-5" />
-        </button>
-        <button
+          <ArrowLeft className="w-5 h-5" />
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={onToggleSound}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100/10 active:bg-gray-100/20"
+          className={`p-2 rounded-lg transition-all
+            ${isSoundEnabled
+              ? 'bg-violet-500/20 text-violet-500'
+              : 'bg-gray-900/5 dark:bg-gray-700/30'}`}
         >
-          <Volume2 
-            size={16} 
-            className={`sm:w-5 sm:h-5 ${isSoundEnabled ? 'text-violet-500' : 'opacity-50'}`} 
-          />
-        </button>
+          <Volume2 className="w-5 h-5" />
+        </motion.button>
       </div>
 
       {/* Orta: Oyun Metrikleri */}
-      <div className="flex-1 grid grid-cols-5 gap-1 sm:gap-2 place-items-center">
+      <div className="flex-1 grid grid-cols-5 gap-2 sm:gap-3 place-items-center">
         <GameStat
           icon={Timer}
           value={timer}
@@ -337,11 +474,27 @@ const GameHeader = ({
           color="text-orange-500"
           isActive={activePowerUps.timeFreeze?.active}
           remainingTime={activePowerUps.timeFreeze?.remainingTime}
+          tooltip={{
+            title: "Kalan Süre",
+            description: "Oyunu tamamlamak için kalan süre",
+            stats: {
+              "Hedef": `${DIFFICULTY_SETTINGS[difficulty].timeLimit}s`,
+              "Kalan": `${timer}s`
+            }
+          }}
         />
         <GameStat
           icon={Heart}
           value={lives}
           color="text-red-500"
+          tooltip={{
+            title: "Canlar",
+            description: "Her yanlış eşleşmede 1 can kaybedersiniz",
+            stats: {
+              "Max": "5",
+              "Mevcut": lives
+            }
+          }}
         />
         <GameStat
           icon={Zap}
@@ -350,48 +503,58 @@ const GameHeader = ({
           color="text-blue-500"
           isActive={activePowerUps.doublePoints?.active}
           remainingTime={activePowerUps.doublePoints?.remainingTime}
+          tooltip={{
+            title: "Kombo",
+            description: "Üst üste doğru eşleştirmeler yapın",
+            stats: {
+              "Rekor": "5x",
+              "Şuan": `${combo}x`
+            }
+          }}
         />
         <GameStat
           icon={Star}
           value={level}
           color="text-violet-500"
+          tooltip={{
+            title: "Seviye",
+            description: "Her seviye daha zorlaşır",
+            stats: {
+              "Seviye": level,
+              "Zorluk": difficulty
+            }
+          }}
         />
         <GameStat
           icon={Crown}
           value={score}
           color="text-yellow-500"
+          tooltip={{
+            title: "Skor",
+            description: "Eşleştirme ve kombo puanları",
+            stats: {
+              "Toplam": score,
+              "Bonus": activePowerUps.doublePoints?.active ? "2x" : "1x"
+            }
+          }}
         />
       </div>
 
       {/* Sağ: Coin ve Store */}
-      <button
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={onOpenStore}
-        className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg 
-        bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 rounded-xl
+        bg-gradient-to-r from-violet-500/20 to-violet-500/10
+        hover:from-violet-500/30 hover:to-violet-500/20
+        text-violet-500 transition-all shadow-lg shadow-violet-500/10"
       >
-        <Trophy size={16} className="sm:w-5 sm:h-5" />
-        <span className="text-sm sm:text-base font-medium">{coins}</span>
-      </button>
+        <Trophy className="w-5 h-5" />
+        <span className="font-semibold">{coins}</span>
+      </motion.button>
     </div>
-  </div>
-);
-
-// Yeni GameStat bileşeni
-const GameStat = ({ icon: Icon, value, suffix = '', color, isActive, remainingTime }) => (
-  <div className="relative flex flex-col items-center">
-    <div className={`relative p-1.5 sm:p-2 rounded-lg ${
-      isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'
-    } transition-colors`}>
-      <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${color}`} />
-      {isActive && remainingTime && (
-        <div className="absolute -bottom-1 -right-1 text-[10px] font-medium px-1 py-0.5 
-        rounded-full bg-violet-500 text-white">{remainingTime}</div>
-      )}
-    </div>
-    <span className="mt-0.5 text-xs sm:text-sm font-medium">
-      {value}{suffix}
-    </span>
-  </div>
+  </motion.div>
 );
 
 // createCards fonksiyonunu güncelle
@@ -816,6 +979,7 @@ export default function WordMemoryGame({
         combo={combo}
         coins={coins}
         darkMode={darkMode}
+        difficulty={difficulty} // Add this line
         onBack={onBack}
         isSoundEnabled={isSoundEnabled}
         onToggleSound={() => {
