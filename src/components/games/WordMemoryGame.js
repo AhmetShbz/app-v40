@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios'; // axios'u import edelim
 import Confetti from 'react-confetti';
@@ -290,50 +290,62 @@ const AchievementsPanel = ({ achievements, darkMode }) => (
   </div>
 );
 
-// IconTooltip bileşenini güncelle - daha kompakt tasarım
-const IconTooltip = ({ isOpen, onClose, title, description, icon: Icon, color, stats }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 5 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: 5 }}
-    className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-64"
-    onClick={(e) => {
-      e.stopPropagation();
-      onClose();
-    }}
-  >
-    <motion.div
-      className={`p-3 rounded-xl bg-white/95 dark:bg-gray-800/95 shadow-lg
-      border border-gray-200/20 dark:border-gray-700/30 backdrop-blur-sm
-      text-left`}
-    >
-      <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-lg ${color.bg} shrink-0`}>
-          <Icon className={`w-4 h-4 ${color.text}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm">{title}</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
-            {description}
-          </p>
-          {stats && (
-            <div className="mt-2 flex gap-2 text-xs">
-              {Object.entries(stats).map(([key, value]) => (
-                <div key={key} className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700/50">
-                  <span className="text-gray-500 dark:text-gray-400">{key}:</span>
-                  {' '}
-                  <span className="font-medium">{value}</span>
-                </div>
-              ))}
+// IconTooltip bileşenini güncelle
+const IconTooltip = ({ isOpen, onClose, title, description, icon: Icon, color, stats, sourcePosition }) => (
+  <div className="fixed inset-0 z-50 pointer-events-none">
+    <div className="absolute top-[4.5rem] left-1/2 -translate-x-1/2 w-80">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="relative"
+      >
+        {/* Bağlantı çizgisi */}
+        <div
+          className="absolute top-0 w-[2px] bg-gradient-to-b from-violet-500/50 to-transparent"
+          style={{
+            height: '1rem',
+            left: `${sourcePosition}px`,
+            transform: 'translateX(-50%)'
+          }}
+        />
+
+        <div className={`
+          p-4 rounded-xl bg-white/95 dark:bg-gray-800/95 shadow-xl
+          border border-gray-200/20 dark:border-gray-700/30 backdrop-blur-sm
+          pointer-events-auto
+        `}>
+          <div className="flex items-start gap-4">
+            <div className={`p-2.5 rounded-lg ${color.bg} shrink-0`}>
+              <Icon className={`w-5 h-5 ${color.text}`} />
             </div>
-          )}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm">{title}</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {description}
+              </p>
+              {stats && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {Object.entries(stats).map(([key, value]) => (
+                    <div key={key}
+                      className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700/50
+                      text-xs flex items-center justify-between"
+                    >
+                      <span className="text-gray-500 dark:text-gray-400">{key}</span>
+                      <span className="font-medium">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </motion.div>
-  </motion.div>
+      </motion.div>
+    </div>
+  </div>
 );
 
-// GameStat bileşenini relative yap
+// GameStat bileşenini güncelle
 const GameStat = ({
   icon: Icon,
   value,
@@ -341,35 +353,52 @@ const GameStat = ({
   color,
   isActive,
   remainingTime,
-  tooltip
+  tooltip,
+  index = 2 // Varsayılan olarak orta
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const buttonRef = useRef(null);
+  const [sourcePosition, setSourcePosition] = useState(0);
 
-  // Tooltip'i otomatik kapatmak için useEffect ekle
+  // İkon pozisyonunu hesapla
+  useEffect(() => {
+    if (buttonRef.current && showTooltip) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      setSourcePosition(centerX);
+    }
+  }, [showTooltip]);
+
   useEffect(() => {
     let timeoutId;
     if (showTooltip) {
       timeoutId = setTimeout(() => {
         setShowTooltip(false);
-      }, 3000); // 3 saniye sonra kapat
+      }, 3000);
     }
     return () => clearTimeout(timeoutId);
   }, [showTooltip]);
 
+  // İkonun konumuna göre tooltip pozisyonunu belirle
+  const getTooltipPosition = () => {
+    if (index === 0) return 'left';
+    if (index === 4) return 'right';
+    return 'center';
+  };
+
   return (
-    <div className="relative">
+    <div className="relative" ref={buttonRef}>
       <motion.button
-        onClick={() => {
-          setShowTooltip(true);
-        }}
+        onClick={() => setShowTooltip(true)}
         onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         className="relative group"
       >
         <div className={`relative p-2 sm:p-2.5 rounded-xl transition-all duration-200
           ${isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'}
-          group-hover:shadow-lg group-hover:shadow-${color.split('-')[1]}-500/20`}
+          group-hover:shadow-lg ${showTooltip ? 'ring-2 ring-violet-500/50' : ''}`}
         >
           <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${color} transition-transform
             group-hover:scale-110`} />
@@ -385,16 +414,18 @@ const GameStat = ({
               {remainingTime}
             </motion.div>
           )}
-        </div>
-        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="px-2 py-0.5 rounded-full bg-gray-900/90 dark:bg-gray-700/90
-            text-white text-xs font-medium whitespace-nowrap"
-          >
-            {value}{suffix}
-          </motion.div>
+
+          {/* Alt değer göstergesi */}
+          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="px-2 py-0.5 rounded-full bg-gray-900/90 dark:bg-gray-700/90
+              text-white text-xs font-medium whitespace-nowrap"
+            >
+              {value}{suffix}
+            </motion.div>
+          </div>
         </div>
       </motion.button>
 
@@ -409,6 +440,7 @@ const GameStat = ({
               bg: `${color.replace('text', 'bg')}/10`,
               text: color
             }}
+            sourcePosition={sourcePosition - window.innerWidth / 2}
           />
         )}
       </AnimatePresence>
@@ -468,6 +500,7 @@ const GameHeader = ({
       {/* Orta: Oyun Metrikleri */}
       <div className="flex-1 grid grid-cols-5 gap-2 sm:gap-3 place-items-center">
         <GameStat
+          index={0} // Sol
           icon={Timer}
           value={timer}
           suffix="s"
@@ -484,6 +517,7 @@ const GameHeader = ({
           }}
         />
         <GameStat
+          index={1}
           icon={Heart}
           value={lives}
           color="text-red-500"
@@ -497,6 +531,7 @@ const GameHeader = ({
           }}
         />
         <GameStat
+          index={2} // Orta
           icon={Zap}
           value={combo}
           suffix="x"
@@ -513,6 +548,7 @@ const GameHeader = ({
           }}
         />
         <GameStat
+          index={3}
           icon={Star}
           value={level}
           color="text-violet-500"
@@ -526,6 +562,7 @@ const GameHeader = ({
           }}
         />
         <GameStat
+          index={4} // Sağ
           icon={Crown}
           value={score}
           color="text-yellow-500"
