@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios'; // axios'u import edelim
+import Confetti from 'react-confetti';
 import {
   Timer, Star, Trophy, Shield, Heart,
   Crown, RefreshCw, Award, Zap, Book,
@@ -232,15 +233,10 @@ const PowerUpStore = ({ coins, onPurchase, darkMode }) => (
         whileTap={{ scale: 0.98 }}
         onClick={() => onPurchase(key)}
         className={`p-4 rounded-xl ${
-          coins >= powerup.cost
-            ? darkMode
-              ? 'bg-violet-500/20 hover:bg-violet-500/30'
-              : 'bg-violet-50 hover:bg-violet-100'
-            : darkMode
-              ? 'bg-gray-700/50 opacity-50'
-              : 'bg-gray-100 opacity-50'
+          darkMode
+            ? 'bg-violet-500/20 hover:bg-violet-500/30'
+            : 'bg-violet-50 hover:bg-violet-100'
         } flex flex-col items-center gap-2`}
-        disabled={coins < powerup.cost}
       >
         <powerup.icon className="w-8 h-8" />
         <div className="text-sm font-medium">{powerup.name}</div>
@@ -426,6 +422,81 @@ const createCards = (words, pairCount) => {
     }));
 };
 
+// Yeni bileşen: Celebration
+const Celebration = ({ message, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.8 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.8 }}
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+  >
+    <div className="bg-white p-6 rounded-2xl shadow-xl text-center">
+      <h2 className="text-2xl font-bold mb-4">{message}</h2>
+      <button
+        onClick={onClose}
+        className="px-4 py-2 bg-violet-500 text-white rounded-lg"
+      >
+        Tamam
+      </button>
+    </div>
+  </motion.div>
+);
+
+// Yeni bileşen: PowerUpCelebration
+const PowerUpCelebration = ({ powerUp, onComplete }) => {
+  const [dimensions, setDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 2000); // 2 saniye sonra yeteneği aktifleştir
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const Icon = powerUp.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      <Confetti
+        width={dimensions.width}
+        height={dimensions.height}
+        recycle={false}
+        numberOfPieces={200}
+        gravity={0.3}
+      />
+      <motion.div
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{
+          scale: [0, 1.2, 1],
+          rotate: [180, 0],
+          transition: { duration: 0.5 }
+        }}
+        className={`p-8 rounded-full bg-violet-500 text-white`}
+      >
+        <Icon size={48} />
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // Ana oyun container'ını ve grid sistemini güncelle
 export default function WordMemoryGame({
   words = [],
@@ -460,6 +531,9 @@ export default function WordMemoryGame({
   const [showTutorial, setShowTutorial] = useState(true);
   const [showStore, setShowStore] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState('');
+  const [celebratingPowerUp, setCelebratingPowerUp] = useState(null);
 
   // State tanımlamaları ekleyelim
   const [isGameOver, setIsGameOver] = useState(false);
@@ -476,23 +550,29 @@ export default function WordMemoryGame({
   // PowerUp satın alma
   const handlePurchasePowerUp = useCallback((powerUpId) => {
     const powerUp = POWERUPS[powerUpId];
-    if (coins >= powerUp.cost) {
-      setCoins(prev => prev - powerUp.cost);
-      setShowStore(false); // Mağazayı kapat
-      setTimeout(() => {
-        setActivePowerUps(prev => ({
-          ...prev,
-          [powerUpId]: {
-            active: true,
-            remainingTime: powerUp.duration
-          }
-        }));
-        if (isSoundEnabled) playSound('powerup');
-        // Bildirim göster
-        alert(`${powerUp.name} yeteneği kullanıldı!`);
-      }, 300); // Modal kapanma animasyonu için kısa bir gecikme ekle
+    setShowStore(false); // Mağazayı kapat
+
+    // Kutlama animasyonunu göster
+    setCelebratingPowerUp(powerUp);
+
+    // Yetenek aktivasyonu kutlama sonrasına taşındı
+    // Kutlama komponenti içinde onComplete callback'i ile tetiklenecek
+  }, []);
+
+  // Kutlama tamamlandığında çağrılacak fonksiyon
+  const handleCelebrationComplete = useCallback(() => {
+    if (celebratingPowerUp) {
+      setActivePowerUps(prev => ({
+        ...prev,
+        [celebratingPowerUp.id]: {
+          active: true,
+          remainingTime: celebratingPowerUp.duration
+        }
+      }));
+      if (isSoundEnabled) playSound('powerup');
+      setCelebratingPowerUp(null);
     }
-  }, [coins, isSoundEnabled, playSound]);
+  }, [celebratingPowerUp, isSoundEnabled, playSound]);
 
   // Başarım kontrolü
   const checkAchievements = useCallback(() => {
@@ -598,24 +678,24 @@ export default function WordMemoryGame({
   // Kart tıklama işleyicisi
   const handleCardClick = useCallback(async (index) => {
     if (flippedIndexes.length === 2 || isGameOver) return;
-  
+
     setFlippedIndexes(prev => [...prev, index]);
-  
+
     const clickedCard = gameCards[index];
     if (clickedCard.word.isPolish) {
       await playAudioWithElevenLabs(clickedCard.word.polish);
     }
-  
+
     if (flippedIndexes.length === 1) {
       const firstCard = gameCards[flippedIndexes[0]];
       const secondCard = gameCards[index];
-  
+
       if (firstCard.word.pairId === secondCard.word.pairId) {
         setMatchedPairs(prev => [...prev, firstCard.word.pairId]);
         setScore(prev => prev + (100 * (activePowerUps.doublePoints?.active ? 2 : 1)));
         setCombo(prev => prev + 1);
         playSound('match');
-  
+
         // Tüm kartlar eşleşti mi kontrol et
         if (matchedPairs.length + 1 === DIFFICULTY_SETTINGS[difficulty].pairs) {
           setGameStatus('won');
@@ -628,7 +708,7 @@ export default function WordMemoryGame({
           setLives(prev => prev - 1);
           setCombo(0);
           playSound('wrong');
-  
+
           if (lives <= 1) {
             setGameStatus('lost');
             setIsGameOver(true);
@@ -636,13 +716,13 @@ export default function WordMemoryGame({
           }
         }, 1000);
       }
-  
+
       setTimeout(() => {
         setFlippedIndexes([]);
       }, 1000);
     }
   }, [flippedIndexes, gameCards, isGameOver, lives, matchedPairs.length, difficulty, activePowerUps.doublePoints, playSound]);
-  
+
 
   // Yeniden başlatma işleyicisi
   const handleRestart = useCallback(() => {
@@ -852,7 +932,7 @@ export default function WordMemoryGame({
                 <div className={`p-4 rounded-xl ${
                   darkMode ? 'bg-gray-700/50' : 'bg-gray-50'
                 }`}>
-                  <h3 className="font-medium mb-3">Kazanılan Başarımlar</h3>
+                  <h3 className="font-medium mb-3">Kazan��lan Başarımlar</h3>
                   <div className="space-y-2">
                     {achievements.map(id => {
                       const AchievementIcon = ACHIEVEMENTS[id].icon;
@@ -931,6 +1011,26 @@ export default function WordMemoryGame({
               </div>
             </div>
           </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Kutlama Animasyonu */}
+      <AnimatePresence>
+        {showCelebration && (
+          <Celebration
+            message={celebrationMessage}
+            onClose={() => setShowCelebration(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* PowerUp Kutlama Animasyonu */}
+      <AnimatePresence>
+        {celebratingPowerUp && (
+          <PowerUpCelebration
+            powerUp={celebratingPowerUp}
+            onComplete={handleCelebrationComplete}
+          />
         )}
       </AnimatePresence>
     </div>
