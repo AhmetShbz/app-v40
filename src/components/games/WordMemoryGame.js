@@ -684,16 +684,9 @@ export default function WordMemoryGame({
           ? 'bg-gray-800/50 border-gray-700/50'
           : 'bg-white/50 border-gray-200/50'
       } border backdrop-blur-sm h-[calc(100vh-8rem)] sm:h-[calc(100vh-12rem)] flex items-center justify-center overflow-hidden`}>
-        <div className={`w-full h-full grid gap-2 sm:gap-3 ${
-          // Responsive grid sistemini güncelle ve minimum genişlik ekle
-          DIFFICULTY_SETTINGS[difficulty].pairs <= 6
-            ? 'grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 min-w-[280px]'
-            : DIFFICULTY_SETTINGS[difficulty].pairs <= 8
-            ? 'grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 min-w-[320px]'
-            : 'grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 min-w-[360px]'
-        } place-items-center max-w-4xl mx-auto`}>
-          {gameCards.map((card, index) => (
-            <div className="w-full h-full max-w-[120px] max-h-[120px]">
+        <div className="w-full h-full grid grid-cols-4 gap-2 sm:gap-3 place-items-center max-w-4xl mx-auto">
+          {gameCards.slice(0, 16).map((card, index) => (
+            <div className="w-full h-full max-w-[80px] max-h-[80px] sm:max-w-[100px] sm:max-h-[100px] md:max-w-[120px] md:max-h-[120px]">
               <Card
                 key={card.id}
                 word={card.word}
