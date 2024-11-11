@@ -292,55 +292,73 @@ const AchievementsPanel = ({ achievements, darkMode }) => (
 
 // IconTooltip bileşenini güncelle
 const IconTooltip = ({ isOpen, onClose, title, description, icon: Icon, color, stats, sourcePosition }) => (
-  <div className="fixed inset-0 z-50 pointer-events-none">
-    <div className="absolute top-[4.5rem] left-1/2 -translate-x-1/2 w-80">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="relative"
-      >
-        {/* Bağlantı çizgisi */}
-        <div
-          className="absolute top-0 w-[2px] bg-gradient-to-b from-violet-500/50 to-transparent"
-          style={{
-            height: '1rem',
-            left: `${sourcePosition}px`,
-            transform: 'translateX(-50%)'
-          }}
-        />
+  <div className="fixed inset-0 isolate" style={{ zIndex: 9999 }}>
+    {/* Blur Backdrop */}
+    <div
+      className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+      onClick={onClose}
+    />
 
-        <div className={`
-          p-4 rounded-xl bg-white/95 dark:bg-gray-800/95 shadow-xl
-          border border-gray-200/20 dark:border-gray-700/30 backdrop-blur-sm
-          pointer-events-auto
-        `}>
-          <div className="flex items-start gap-4">
-            <div className={`p-2.5 rounded-lg ${color.bg} shrink-0`}>
-              <Icon className={`w-5 h-5 ${color.text}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-sm">{title}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {description}
-              </p>
-              {stats && (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {Object.entries(stats).map(([key, value]) => (
-                    <div key={key}
-                      className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700/50
-                      text-xs flex items-center justify-between"
-                    >
-                      <span className="text-gray-500 dark:text-gray-400">{key}</span>
-                      <span className="font-medium">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+    <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
+      <div className="w-80 mt-24">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="relative"
+        >
+          {/* İkondan tooltip'e uzanan animasyonlu bağlantı çizgisi */}
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: '2rem' }}
+            className="absolute -top-8 left-1/2"
+            style={{
+              width: '2px',
+              background: `linear-gradient(to bottom,
+                ${color.text.includes('orange') ? '#f97316' :
+                  color.text.includes('red') ? '#ef4444' :
+                  color.text.includes('blue') ? '#3b82f6' :
+                  color.text.includes('violet') ? '#8b5cf6' :
+                  color.text.includes('yellow') ? '#eab308' :
+                  '#8b5cf6'}aa,
+                transparent)`,
+              transform: `translateX(${sourcePosition}px)`,
+            }}
+          />
+
+          {/* Ana tooltip içeriği */}
+          <div className={`
+            p-4 rounded-xl bg-white/95 dark:bg-gray-800/95 shadow-xl
+            border border-gray-200/20 dark:border-gray-700/30 backdrop-blur-sm
+            pointer-events-auto
+          `}>
+            <div className="flex items-start gap-4">
+              <div className={`p-2.5 rounded-lg ${color.bg} shrink-0`}>
+                <Icon className={`w-5 h-5 ${color.text}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-sm">{title}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {description}
+                </p>
+                {stats && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {Object.entries(stats).map(([key, value]) => (
+                      <div key={key}
+                        className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700/50
+                        text-xs flex items-center justify-between"
+                      >
+                        <span className="text-gray-500 dark:text-gray-400">{key}</span>
+                        <span className="font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   </div>
 );
@@ -365,7 +383,8 @@ const GameStat = ({
     if (buttonRef.current && showTooltip) {
       const rect = buttonRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
-      setSourcePosition(centerX);
+      const relativeX = centerX - (window.innerWidth / 2);
+      setSourcePosition(relativeX);
     }
   }, [showTooltip]);
 
@@ -394,11 +413,12 @@ const GameStat = ({
         onMouseLeave={() => setShowTooltip(false)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="relative group"
+        className={`relative group ${showTooltip ? 'z-[201]' : ''}`}
       >
         <div className={`relative p-2 sm:p-2.5 rounded-xl transition-all duration-200
           ${isActive ? 'bg-violet-500/20' : 'hover:bg-gray-100/10'}
-          group-hover:shadow-lg ${showTooltip ? 'ring-2 ring-violet-500/50' : ''}`}
+          group-hover:shadow-lg ${showTooltip ? 'ring-2 ring-violet-500/50' : ''}
+          ${showTooltip ? 'z-[101]' : 'z-10'}`} // Z-index artırıldı
         >
           <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${color} transition-transform
             group-hover:scale-110`} />
@@ -440,7 +460,7 @@ const GameStat = ({
               bg: `${color.replace('text', 'bg')}/10`,
               text: color
             }}
-            sourcePosition={sourcePosition - window.innerWidth / 2}
+            sourcePosition={sourcePosition}
           />
         )}
       </AnimatePresence>
@@ -1007,7 +1027,7 @@ export default function WordMemoryGame({
   }, []);
 
   return (
-    <div className="min-h-screen w-full p-2 sm:p-4 space-y-3 sm:space-y-4 max-w-7xl mx-auto">
+    <div className="min-h-screen w-full p-2 sm:p-4 space-y-3 sm:space-y-4 max-w-7xl mx-auto relative isolate">
       <GameHeader
         score={score}
         lives={lives}
@@ -1028,7 +1048,7 @@ export default function WordMemoryGame({
         activePowerUps={activePowerUps}
       />
 
-      <div className={`p-2 sm:p-4 rounded-2xl ${
+      <div className={`relative z-0 p-2 sm:p-4 rounded-2xl ${
         darkMode
           ? 'bg-gray-800/50 border-gray-700/50'
           : 'bg-white/50 border-gray-200/50'
