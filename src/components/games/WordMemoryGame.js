@@ -194,7 +194,7 @@ const Card = ({
     >
       <div
         className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center p-0.5 sm:p-1 transition-all duration-300 ${
-          isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+          isFlipped || isMatched ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
         }`}
       >
         <span className="text-[10px] leading-none sm:text-xs md:text-sm font-medium text-center w-full px-0.5 sm:px-1 break-words line-clamp-2 overflow-hidden">
@@ -211,7 +211,7 @@ const Card = ({
       </div>
       <div
         className={`absolute inset-0 w-full h-full flex items-center justify-center transition-all duration-300 ${
-          !isFlipped ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+          !isFlipped && !isMatched ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
         }`}
       >
         <span className="text-xl">?</span>
@@ -478,14 +478,19 @@ export default function WordMemoryGame({
     const powerUp = POWERUPS[powerUpId];
     if (coins >= powerUp.cost) {
       setCoins(prev => prev - powerUp.cost);
-      setActivePowerUps(prev => ({
-        ...prev,
-        [powerUpId]: {
-          active: true,
-          remainingTime: powerUp.duration
-        }
-      }));
-      if (isSoundEnabled) playSound('powerup');
+      setShowStore(false); // Mağazayı kapat
+      setTimeout(() => {
+        setActivePowerUps(prev => ({
+          ...prev,
+          [powerUpId]: {
+            active: true,
+            remainingTime: powerUp.duration
+          }
+        }));
+        if (isSoundEnabled) playSound('powerup');
+        // Bildirim göster
+        alert(`${powerUp.name} yeteneği kullanıldı!`);
+      }, 300); // Modal kapanma animasyonu için kısa bir gecikme ekle
     }
   }, [coins, isSoundEnabled, playSound]);
 
@@ -605,8 +610,8 @@ export default function WordMemoryGame({
       const firstCard = gameCards[flippedIndexes[0]];
       const secondCard = gameCards[index];
   
-      if (firstCard.pairId === secondCard.pairId) {
-        setMatchedPairs(prev => [...prev, firstCard.pairId]);
+      if (firstCard.word.pairId === secondCard.word.pairId) {
+        setMatchedPairs(prev => [...prev, firstCard.word.pairId]);
         setScore(prev => prev + (100 * (activePowerUps.doublePoints?.active ? 2 : 1)));
         setCombo(prev => prev + 1);
         playSound('match');
