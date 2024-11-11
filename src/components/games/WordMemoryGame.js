@@ -534,6 +534,8 @@ export default function WordMemoryGame({
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState('');
   const [celebratingPowerUp, setCelebratingPowerUp] = useState(null);
+  const [showInsufficientCoinsModal, setShowInsufficientCoinsModal] = useState(false);
+  const [selectedPowerUp, setSelectedPowerUp] = useState(null);
 
   // State tanımlamaları ekleyelim
   const [isGameOver, setIsGameOver] = useState(false);
@@ -550,14 +552,23 @@ export default function WordMemoryGame({
   // PowerUp satın alma
   const handlePurchasePowerUp = useCallback((powerUpId) => {
     const powerUp = POWERUPS[powerUpId];
+
+    // Coin kontrolü
+    if (coins < powerUp.cost) {
+      setSelectedPowerUp(powerUp);
+      setShowInsufficientCoinsModal(true);
+      return;
+    }
+
+    // Coini düş
+    setCoins(prev => prev - powerUp.cost);
+
     setShowStore(false); // Mağazayı kapat
 
     // Kutlama animasyonunu göster
     setCelebratingPowerUp(powerUp);
 
-    // Yetenek aktivasyonu kutlama sonrasına taşındı
-    // Kutlama komponenti içinde onComplete callback'i ile tetiklenecek
-  }, []);
+  }, [coins]);
 
   // Kutlama tamamlandığında çağrılacak fonksiyon
   const handleCelebrationComplete = useCallback(() => {
@@ -932,7 +943,7 @@ export default function WordMemoryGame({
                 <div className={`p-4 rounded-xl ${
                   darkMode ? 'bg-gray-700/50' : 'bg-gray-50'
                 }`}>
-                  <h3 className="font-medium mb-3">Kazan��lan Başarımlar</h3>
+                  <h3 className="font-medium mb-3">Kazanılan Başarımlar</h3>
                   <div className="space-y-2">
                     {achievements.map(id => {
                       const AchievementIcon = ACHIEVEMENTS[id].icon;
@@ -1033,6 +1044,21 @@ export default function WordMemoryGame({
           />
         )}
       </AnimatePresence>
+
+      {/* Yetersiz Coin Bildirimi */}
+      <AnimatePresence>
+        {showInsufficientCoinsModal && (
+          <InsufficientCoinsModal
+            powerUp={selectedPowerUp}
+            darkMode={darkMode}
+            onClose={() => setShowInsufficientCoinsModal(false)}
+            onWatchAd={() => {
+              // Şimdilik boş bırakıyoruz, video reklam sistemi eklenecek
+              console.log('Video izle tıklandı');
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1096,4 +1122,50 @@ const StatItem = ({ icon: Icon, value, label, iconColor }) => (
     </div>
     <p className="text-sm opacity-75">{label}</p>
   </div>
+);
+
+// InsufficientCoinsModal bileşenini ekleyelim (Modal bileşeninden önce)
+const InsufficientCoinsModal = ({ powerUp, onClose, onWatchAd, darkMode }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      className={`w-full max-w-sm p-6 rounded-2xl ${
+        darkMode ? 'bg-gray-800' : 'bg-white'
+      } shadow-xl`}
+    >
+      <div className="flex flex-col items-center text-center gap-4">
+        <Trophy className="w-16 h-16 text-yellow-500" />
+        <div>
+          <h3 className="text-xl font-bold mb-2">Yetersiz Coin!</h3>
+          <p className="text-sm opacity-75">
+            {powerUp.name} satın almak için {powerUp.cost} coin gerekiyor.
+            Video izleyerek coin kazanabilirsiniz!
+          </p>
+        </div>
+        <div className="flex gap-3 w-full">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            className="flex-1"
+          >
+            Çık
+          </Button>
+          <Button
+            variant="primary"
+            onClick={onWatchAd}
+            className="flex-1"
+          >
+            Video İzle
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  </motion.div>
 );
