@@ -537,6 +537,7 @@ export default function WordMemoryGame({
   const [showInsufficientCoinsModal, setShowInsufficientCoinsModal] = useState(false);
   const [selectedPowerUp, setSelectedPowerUp] = useState(null);
   const [showInitialCards, setShowInitialCards] = useState(true);
+  const [showVideoUnavailable, setShowVideoUnavailable] = useState(false);
 
   // State tanımlamaları ekleyelim
   const [isGameOver, setIsGameOver] = useState(false);
@@ -797,6 +798,12 @@ export default function WordMemoryGame({
     setMatchedPairs([]);
     setFlippedIndexes([]);
   }, [words, difficulty]);
+
+  // Video izleme ödülü
+  const handleWatchAd = useCallback(() => {
+    setShowInsufficientCoinsModal(false);
+    setShowVideoUnavailable(true);
+  }, []);
 
   return (
     <div className="min-h-screen w-full p-2 sm:p-4 space-y-3 sm:space-y-4 max-w-7xl mx-auto">
@@ -1091,10 +1098,17 @@ export default function WordMemoryGame({
             powerUp={selectedPowerUp}
             darkMode={darkMode}
             onClose={() => setShowInsufficientCoinsModal(false)}
-            onWatchAd={() => {
-              // Şimdilik boş bırakıyoruz, video reklam sistemi eklenecek
-              console.log('Video izle tıklandı');
-            }}
+            onWatchAd={handleWatchAd}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Video Kullanılamıyor Bildirimi */}
+      <AnimatePresence>
+        {showVideoUnavailable && (
+          <VideoUnavailableModal
+            darkMode={darkMode}
+            onClose={() => setShowVideoUnavailable(false)}
           />
         )}
       </AnimatePresence>
@@ -1204,6 +1218,42 @@ const InsufficientCoinsModal = ({ powerUp, onClose, onWatchAd, darkMode }) => (
             Video İzle
           </Button>
         </div>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+// Video izleme bildirimini ekleyelim
+const VideoUnavailableModal = ({ onClose, darkMode }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+  >
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      className={`w-full max-w-sm p-6 rounded-2xl ${
+        darkMode ? 'bg-gray-800' : 'bg-white'
+      } shadow-xl`}
+    >
+      <div className="flex flex-col items-center text-center gap-4">
+        <Zap className="w-16 h-16 text-violet-500" />
+        <div>
+          <h3 className="text-xl font-bold mb-2">Video Kullanılamıyor</h3>
+          <p className="text-sm opacity-75">
+            Şu an için izlenebilecek video bulunmuyor. Lütfen daha sonra tekrar deneyin!
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={onClose}
+          className="w-full"
+        >
+          Tamam
+        </Button>
       </div>
     </motion.div>
   </motion.div>
